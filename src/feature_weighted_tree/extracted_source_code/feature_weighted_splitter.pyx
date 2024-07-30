@@ -6,11 +6,11 @@ cdef float64_t drawn_probability
 cdef float64_t n_possible_features 
 
 # Draw a features at random with feature weights
-if draw_with_feature_weights: 
+if draw_with_feature_weight: 
     weight_sum = 0.0
     for i in range(f_i):
         if (n_drawn_constants <= i < n_known_constants) or ((n_known_constants + n_found_constants) <= i):
-            feature_weight = feature_weights[features[i]]
+            feature_weight = feature_weight[features[i]]
             possible_weights[i] = feature_weight
             weight_sum += feature_weight 
         else:

@@ -113,8 +113,7 @@ class BaseWeightBoosting(BaseEnsemble, metaclass=ABCMeta):
         X,
         y,
         sample_weight=None,
-        feature_weights=None,
-        draw_with_feature_weights=False,
+        feature_weight=None,
     ):
         """Build a boosted classifier/regressor from the training set (X, y).
 
@@ -183,8 +182,7 @@ class BaseWeightBoosting(BaseEnsemble, metaclass=ABCMeta):
                 y,
                 sample_weight,
                 random_state,
-                feature_weights,
-                draw_with_feature_weights,
+                feature_weight,
             )
 
             # Early termination
@@ -228,8 +226,7 @@ class BaseWeightBoosting(BaseEnsemble, metaclass=ABCMeta):
         y,
         sample_weight,
         random_state,
-        feature_weights,
-        draw_with_feature_weights,
+        feature_weight,
     ):
         """Implement a single boost.
 
@@ -576,8 +573,7 @@ class AdaBoostClassifier(
         y,
         sample_weight,
         random_state,
-        feature_weights,
-        draw_with_feature_weights,
+        feature_weight,
     ):
         """Implement a single boost.
 
@@ -624,8 +620,7 @@ class AdaBoostClassifier(
                 y,
                 sample_weight,
                 random_state,
-                feature_weights,
-                draw_with_feature_weights,
+                feature_weight,
             )
 
         else:  # elif self.algorithm == "SAMME":
@@ -635,8 +630,7 @@ class AdaBoostClassifier(
                 y,
                 sample_weight,
                 random_state,
-                feature_weights,
-                draw_with_feature_weights,
+                feature_weight,
             )
 
     # TODO(1.6): Remove function. The `_boost_real` function won't be used any
@@ -648,8 +642,6 @@ class AdaBoostClassifier(
         y,
         sample_weight,
         random_state,
-        feature_weights,
-        draw_with_feature_weights,
     ):
         """Implement a single boost using the SAMME.R real algorithm."""
         estimator = self._make_estimator(random_state=random_state)
@@ -658,8 +650,6 @@ class AdaBoostClassifier(
             X,
             y,
             sample_weight=sample_weight,
-            feature_weights=feature_weights,
-            draw_with_feature_weights=draw_with_feature_weights,
         )
 
         y_predict_proba = estimator.predict_proba(X)
@@ -722,8 +712,6 @@ class AdaBoostClassifier(
         y,
         sample_weight,
         random_state,
-        feature_weights,
-        draw_with_feature_weights,
     ):
         """Implement a single boost using the SAMME discrete algorithm."""
         estimator = self._make_estimator(random_state=random_state)
@@ -732,8 +720,6 @@ class AdaBoostClassifier(
             X,
             y,
             sample_weight=sample_weight,
-            feature_weights=feature_weights,
-            draw_with_feature_weights=draw_with_feature_weights,
         )
 
         y_predict = estimator.predict(X)

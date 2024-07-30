@@ -127,6 +127,8 @@ cdef class Splitter:
         const float64_t[:, ::1] y,
         const float64_t[:] sample_weight,
         const unsigned char[::1] missing_values_in_feature_mask,
+        const float64_t[:] feature_weight,
+        float64_t budget,
     ) except -1:
         """Initialize the splitter.
 
@@ -153,7 +155,6 @@ cdef class Splitter:
         has_missing : bool
             At least one missing values is in X.
         """
-
         self.rand_r_state = self.random_state.randint(0, RAND_R_MAX)
         cdef intp_t n_samples = X.shape[0]
 
@@ -191,6 +192,7 @@ cdef class Splitter:
         self.y = y
 
         self.sample_weight = sample_weight
+        self.feature_weight = feature_weight
         if missing_values_in_feature_mask is not None:
             self.criterion.init_sum_missing()
         return 0
@@ -1498,8 +1500,10 @@ cdef class BestSplitter(Splitter):
         const float64_t[:, ::1] y,
         const float64_t[:] sample_weight,
         const unsigned char[::1] missing_values_in_feature_mask,
+        const float64_t[:] feature_weight,
+        float64_t budget,
     ) except -1:
-        Splitter.init(self, X, y, sample_weight, missing_values_in_feature_mask)
+        Splitter.init(self, X, y, sample_weight, missing_values_in_feature_mask, feature_weight, budget)
         self.partitioner = DensePartitioner(
             X, self.samples, self.feature_values, missing_values_in_feature_mask
         )
@@ -1534,8 +1538,10 @@ cdef class BestSparseSplitter(Splitter):
         const float64_t[:, ::1] y,
         const float64_t[:] sample_weight,
         const unsigned char[::1] missing_values_in_feature_mask,
+        const float64_t[:] feature_weight,
+        float64_t budget,
     ) except -1:
-        Splitter.init(self, X, y, sample_weight, missing_values_in_feature_mask)
+        Splitter.init(self, X, y, sample_weight, missing_values_in_feature_mask, feature_weight, budget)
         self.partitioner = SparsePartitioner(
             X, self.samples, self.n_samples, self.feature_values, missing_values_in_feature_mask
         )
@@ -1570,8 +1576,10 @@ cdef class RandomSplitter(Splitter):
         const float64_t[:, ::1] y,
         const float64_t[:] sample_weight,
         const unsigned char[::1] missing_values_in_feature_mask,
+        const float64_t[:] feature_weight,
+        float64_t budget,
     ) except -1:
-        Splitter.init(self, X, y, sample_weight, missing_values_in_feature_mask)
+        Splitter.init(self, X, y, sample_weight, missing_values_in_feature_mask, feature_weight, budget)
         self.partitioner = DensePartitioner(
             X, self.samples, self.feature_values, missing_values_in_feature_mask
         )
@@ -1606,8 +1614,10 @@ cdef class RandomSparseSplitter(Splitter):
         const float64_t[:, ::1] y,
         const float64_t[:] sample_weight,
         const unsigned char[::1] missing_values_in_feature_mask,
+        const float64_t[:] feature_weight,
+        float64_t budget,
     ) except -1:
-        Splitter.init(self, X, y, sample_weight, missing_values_in_feature_mask)
+        Splitter.init(self, X, y, sample_weight, missing_values_in_feature_mask, feature_weight, budget)
         self.partitioner = SparsePartitioner(
             X, self.samples, self.n_samples, self.feature_values, missing_values_in_feature_mask
         )
@@ -1635,17 +1645,19 @@ cdef class RandomSparseSplitter(Splitter):
 cdef class FeatureWeightedBestSplitter(Splitter):
     """Splitter for finding the best feature weighted split on dense data."""
     cdef DensePartitioner partitioner
-    cdef float64_t[::1] feature_weights
     cdef float64_t[::1] possible_weights
-    cdef bint draw_with_feature_weights
+    cdef bint draw_with_feature_weight
+    cdef bint individual_feature_weight
     cdef int init(
         self,
         object X,
         const float64_t[:, ::1] y,
         const float64_t[:] sample_weight,
         const unsigned char[::1] missing_values_in_feature_mask,
+        const float64_t[:] feature_weight,
+        float64_t budget,
     ) except -1:
-        Splitter.init(self, X, y, sample_weight, missing_values_in_feature_mask)
+        Splitter.init(self, X, y, sample_weight, missing_values_in_feature_mask, feature_weight, budget)
         self.partitioner = DensePartitioner(
             X, self.samples, self.feature_values, missing_values_in_feature_mask
         )
@@ -1658,12 +1670,13 @@ cdef class FeatureWeightedBestSplitter(Splitter):
         float64_t min_weight_leaf,
         object random_state,
         const cnp.int8_t[:] monotonic_cst,
-        float64_t[::1] feature_weights,
-        bint draw_with_feature_weights,
+        bint draw_with_feature_weight,
+        bint individual_feature_weight,
+        float64_t[::1] possible_weights,
     ):
-        self.feature_weights = feature_weights
-        self.possible_weights = np.zeros(len(feature_weights))
-        self.draw_with_feature_weights = draw_with_feature_weights
+        self.possible_weights = possible_weights
+        self.draw_with_feature_weight = draw_with_feature_weight
+        self.individual_feature_weight = individual_feature_weight
 
     cdef int node_split(
             self,
@@ -1684,10 +1697,10 @@ cdef class FeatureWeightedBestSplitter(Splitter):
             self.monotonic_cst,
             lower_bound,
             upper_bound,
-            self.feature_weights,
-            self.draw_with_feature_weights,
+            # self.feature_weight,
+            self.draw_with_feature_weight,
+            self.individual_feature_weight,
             self.possible_weights,
-
         )
 
 cdef inline int node_split_feature_weighted_best(
@@ -1701,8 +1714,9 @@ cdef inline int node_split_feature_weighted_best(
     const cnp.int8_t[:] monotonic_cst,
     float64_t lower_bound,
     float64_t upper_bound,
-    float64_t[::1] feature_weights,
-    bint draw_with_feature_weights,
+    # float64_t[:,:] feature_weight,
+    bint draw_with_feature_weight,
+    bint individual_feature_weight,
     float64_t[::1] possible_weights
 ) except -1 nogil:
     """Find the best split on node samples[start:end]
@@ -1752,7 +1766,7 @@ cdef inline int node_split_feature_weighted_best(
     # Own variables
     cdef float64_t weight_sum
     cdef float64_t current_weight_sum
-    cdef float64_t feature_weight 
+    cdef const float64_t[:] feature_weight = splitter.feature_weight
     cdef float64_t drawn_probability
     cdef float64_t current_feature_weight
     
@@ -1768,6 +1782,8 @@ cdef inline int node_split_feature_weighted_best(
     # for good splitting) by ancestor nodes and save the information on
     # newly discovered constant features to spare computation on descendant
     # nodes.
+    #with gil:
+    #    print(feature_weight.shape)
     while (f_i > n_total_constants and  # Stop early if remaining features
                                         # are constant
             (n_visited_features < max_features or
@@ -1789,13 +1805,13 @@ cdef inline int node_split_feature_weighted_best(
 
 
         # Draw a features at random with feature weights
-        if draw_with_feature_weights: 
+        if draw_with_feature_weight: 
             weight_sum = 0.0
             for i in range(f_i):
                 if (n_drawn_constants <= i < n_known_constants) or ((n_known_constants + n_found_constants) <= i):
-                    feature_weight = feature_weights[features[i]]
-                    possible_weights[i] = feature_weight
-                    weight_sum += feature_weight 
+                    current_feature_weight = feature_weight[features[i]]
+                    possible_weights[i] = current_feature_weight
+                    weight_sum += current_feature_weight 
                 else:
                     possible_weights[i] = 0.0
             if weight_sum == 0.0:
@@ -1824,9 +1840,8 @@ cdef inline int node_split_feature_weighted_best(
             continue
 
         # f_j in the interval [n_known_constants, f_i - n_found_constants[
-        if not draw_with_feature_weights:
+        if not draw_with_feature_weight:
             f_j += n_found_constants
-            current_feature_weight = feature_weights[features[f_j]]
 
         # f_j in the interval [n_total_constants, f_i[
         current_split.feature = features[f_j]
@@ -1909,9 +1924,6 @@ cdef inline int node_split_feature_weighted_best(
 
                 current_proxy_improvement = criterion.proxy_impurity_improvement()
 
-                # Added
-                if not draw_with_feature_weights:
-                    current_proxy_improvement *= current_feature_weight
 
                 if current_proxy_improvement > best_proxy_improvement:
                     best_proxy_improvement = current_proxy_improvement
@@ -1949,10 +1961,6 @@ cdef inline int node_split_feature_weighted_best(
                 if not ((criterion.weighted_n_left < min_weight_leaf) or
                         (criterion.weighted_n_right < min_weight_leaf)):
                     current_proxy_improvement = criterion.proxy_impurity_improvement()
-
-                    # Added
-                    if not draw_with_feature_weights:
-                        current_proxy_improvement *= current_feature_weight
 
                     if current_proxy_improvement > best_proxy_improvement:
                         best_proxy_improvement = current_proxy_improvement

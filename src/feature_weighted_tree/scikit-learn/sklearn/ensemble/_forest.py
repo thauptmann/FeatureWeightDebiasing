@@ -163,8 +163,10 @@ def _parallel_build_trees(
     class_weight=None,
     n_samples_bootstrap=None,
     missing_values_in_feature_mask=None,
-    feature_weights=None,
-    draw_with_feature_weights=False,
+    feature_weight=None,
+    draw_with_feature_weight=False,
+    individual_feature_weight=False,
+    budget=None,
 ):
     """
     Private function used to fit a single tree in parallel."""
@@ -181,6 +183,13 @@ def _parallel_build_trees(
         indices = _generate_sample_indices(
             tree.random_state, n_samples, n_samples_bootstrap
         )
+
+        if feature_weight is None:
+            curr_feature_weight = np.ones((X.shape), dtype=np.float64)
+        else:
+            curr_feature_weight = feature_weight[indices].copy()
+        # curr_feature_weight = curr_feature_weight[~np.isnan(curr_feature_weight)]
+
         sample_counts = np.bincount(indices, minlength=n_samples)
         curr_sample_weight *= sample_counts
 
@@ -197,8 +206,9 @@ def _parallel_build_trees(
             sample_weight=curr_sample_weight,
             check_input=False,
             missing_values_in_feature_mask=missing_values_in_feature_mask,
-            feature_weights=feature_weights,
-            draw_with_feature_weights=draw_with_feature_weights,
+            feature_weight=curr_feature_weight,
+            draw_with_feature_weight=draw_with_feature_weight,
+            budget=budget,
         )
     else:
         tree._fit(
@@ -207,8 +217,9 @@ def _parallel_build_trees(
             sample_weight=sample_weight,
             check_input=False,
             missing_values_in_feature_mask=missing_values_in_feature_mask,
-            feature_weights=feature_weights,
-            draw_with_feature_weights=draw_with_feature_weights,
+            feature_weight=feature_weight,
+            draw_with_feature_weight=draw_with_feature_weight,
+            individual_feature_weight=individual_feature_weight,
         )
 
     return tree
@@ -336,7 +347,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
     @_fit_context(prefer_skip_nested_validation=True)
     def fit(
-        self, X, y, sample_weight=None, feature_weights=None, draw_with_feature_weights=False, 
+        self, X, y, sample_weight=None, feature_weight=None, draw_with_feature_weight=False,  individual_feature_weight=False, budget=None,
     ):
         """
         Build a forest of trees from the training set (X, y).
@@ -509,8 +520,10 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                     class_weight=self.class_weight,
                     n_samples_bootstrap=n_samples_bootstrap,
                     missing_values_in_feature_mask=missing_values_in_feature_mask,
-                    feature_weights=feature_weights,
-                    draw_with_feature_weights=draw_with_feature_weights,
+                    feature_weight=feature_weight,
+                    draw_with_feature_weight=draw_with_feature_weight,
+                    individual_feature_weight=individual_feature_weight,
+                    budget=budget,
                 )
                 for i, t in enumerate(trees)
             )

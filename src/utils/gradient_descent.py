@@ -16,7 +16,7 @@ def compute_classification_metrics_gradient_descent(
     T,
     columns,
     sample_weights,
-    feature_weights,
+    feature_weight,
     label,
     random_state=None,
     n_splits=5,
@@ -25,7 +25,7 @@ def compute_classification_metrics_gradient_descent(
         best_clf = None
         best_score = -1
         for sample_weight, feature_weight in zip(
-            sample_weights.values(), feature_weights.values()
+            sample_weights.values(), feature_weight.values()
         ):
             clf, score = train_gradient_descent_classifier(
                 N[columns].values,
@@ -45,7 +45,7 @@ def compute_classification_metrics_gradient_descent(
             N[label].values,
             R[columns].values,
             sample_weights,
-            feature_weights,
+            feature_weight,
             random_state,
             n_splits=n_splits,
         )
@@ -62,7 +62,7 @@ def train_gradient_descent_classifier(
     y,
     R,
     sample_weights,
-    feature_weights=None,
+    feature_weight=None,
     random_state=None,
     n_splits=5,
 ):
@@ -79,7 +79,7 @@ def train_gradient_descent_classifier(
     grid_cv = GridSearchCV(
         clf, param_grid, cv=skf, n_jobs=-1, scoring="roc_auc", refit=True
     )
-    grid_cv.fit(X, y, sample_weight=sample_weights, feature_weights=feature_weights)
+    grid_cv.fit(X, y, sample_weight=sample_weights, feature_weight=feature_weight)
     return grid_cv, grid_cv.best_score_
 
 
@@ -103,7 +103,7 @@ class GradientDescentModel(ClassifierMixin, BaseEstimator):
         X,
         y,
         sample_weight,
-        feature_weights,
+        feature_weight,
     ) -> None:
         self.regularization_method = self.get_regularization_function(
             self.regularization_name
@@ -113,15 +113,15 @@ class GradientDescentModel(ClassifierMixin, BaseEstimator):
         X, y = check_X_y(X, y)
         self.classes_ = unique_labels(y)
         X_with_intercept = np.append(np.ones(len(X))[:, np.newaxis], X, axis=1)
-        feature_weights = np.append(np.min(feature_weights), feature_weights)
-        self.coefficients_ = np.zeros(len(feature_weights))
+        feature_weight = np.append(np.min(feature_weight), feature_weight)
+        self.coefficients_ = np.zeros(len(feature_weight))
 
         while True:
             gradient_norm = self.gradient_descent_step(
                 X_with_intercept,
                 y,
                 sample_weight,
-                feature_weights,
+                feature_weight,
             )
             if gradient_norm < self.epsilon:
                 break
@@ -139,7 +139,7 @@ class GradientDescentModel(ClassifierMixin, BaseEstimator):
         X,
         y,
         sample_weights,
-        feature_weights,
+        feature_weight,
     ):
         predicted_probabilities = self.predict_proba(X)[:, 1]
         target_difference = predicted_probabilities - y
@@ -150,7 +150,7 @@ class GradientDescentModel(ClassifierMixin, BaseEstimator):
         )
         if self.regularization_method is not None:
             regularization_gradients = self.regularization_method(
-                self.coefficients_, self.lambda_value * feature_weights
+                self.coefficients_, self.lambda_value * feature_weight
             )
             weighted_regularization_gradients = regularization_gradients
         else:

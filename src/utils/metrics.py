@@ -211,13 +211,13 @@ def compute_classification_metrics_tree(
     T,
     columns,
     sample_weights,
-    feature_weights,
+    feature_weight,
     label,
     random_state=None,
     n_splits=10,
     splitter="feature_weighted_best",
     max_features="sqrt",
-    draw_with_feature_weights=False,
+    draw_with_feature_weight=False,
     speedup=False,
 ):
     """Computes classification metrics for downstream tasks
@@ -234,11 +234,11 @@ def compute_classification_metrics_tree(
         N[label].values,
         R[columns].values,
         sample_weights,
-        feature_weights,
+        feature_weight,
         random_state=random_state,
         n_splits=n_splits,
         speedup=speedup,
-        draw_with_feature_weights=draw_with_feature_weights,
+        draw_with_feature_weight=draw_with_feature_weight,
         splitter=splitter,
         max_features=max_features,
     )
@@ -255,7 +255,7 @@ def compute_classification_metrics_random_forest(
     T,
     columns,
     sample_weights_list,
-    feature_weights,
+    feature_weight,
     label,
     random_state=None,
     n_splits=5,
@@ -263,8 +263,9 @@ def compute_classification_metrics_random_forest(
     n_estimators=500,
     max_depth=None,
     compute_feature_importance=True,
-    draw_with_feature_weights=False,
+    draw_with_feature_weight=False,
     drop_samples=False,
+    budget=None,
 ):
     """Computes classification metrics for downstream tasks
 
@@ -280,7 +281,7 @@ def compute_classification_metrics_random_forest(
         best_clf = None
         best_score = -1
         for sample_weights, feature_weight in zip(
-            sample_weights_list.values(), feature_weights.values()
+            sample_weights_list.values(), feature_weight.values()
         ):
             if drop_samples:
                 sample_weights = np.array(sample_weights)
@@ -299,9 +300,10 @@ def compute_classification_metrics_random_forest(
                 feature_weight,
                 random_state=random_state,
                 n_splits=n_splits,
-                draw_with_feature_weights=draw_with_feature_weights,
+                draw_with_feature_weight=draw_with_feature_weight,
                 splitter=splitter,
                 n_estimators=n_estimators,
+                budget=budget,
             )
             if score > best_score:
                 best_score = score
@@ -321,12 +323,13 @@ def compute_classification_metrics_random_forest(
             N_train[label].values,
             R[columns].values,
             train_sample_weights,
-            feature_weights,
+            feature_weight,
             random_state=random_state,
             n_splits=n_splits,
-            draw_with_feature_weights=draw_with_feature_weights,
+            draw_with_feature_weight=draw_with_feature_weight,
             splitter=splitter,
             n_estimators=n_estimators,
+            budget=budget,
         )
         best_weights = sample_weights_list
     y_predictions = best_clf.predict_proba(T[columns].values)[:, 1]
@@ -338,11 +341,13 @@ def compute_classification_metrics_random_forest(
             N_train = N.iloc[not_dropped].copy()
         else:
             N_train = N.copy()
-        abs_feature_importance, feature_importance = calculate_feature_importance(
-            T[columns].values,
-            best_clf.best_estimator_,
-            label,
-            N_train[columns].values,
+        abs_feature_importance, feature_importance, shap_values = (
+            calculate_feature_importance(
+                T[columns].values,
+                best_clf.best_estimator_,
+                label,
+                N_train[columns].values,
+            )
         )
     else:
         abs_feature_importance = None
@@ -367,7 +372,7 @@ def compute_classification_metrics_random_forest_gbs(
     T,
     columns,
     sample_weights_list,
-    feature_weights,
+    feature_weight,
     label,
     random_state=None,
     n_splits=5,
@@ -375,7 +380,7 @@ def compute_classification_metrics_random_forest_gbs(
     n_estimators=500,
     max_depth=None,
     compute_feature_importance=True,
-    draw_with_feature_weights=False,
+    draw_with_feature_weight=False,
 ):
     """Computes classification metrics for downstream tasks
 
@@ -390,7 +395,7 @@ def compute_classification_metrics_random_forest_gbs(
         best_clf = None
         best_score = -1
         for sample_weights, feature_weight in zip(
-            sample_weights_list.values(), feature_weights.values()
+            sample_weights_list.values(), feature_weight.values()
         ):
             clf, score = train_random_forest_classifier(
                 N[columns].values,
@@ -400,7 +405,7 @@ def compute_classification_metrics_random_forest_gbs(
                 feature_weight,
                 random_state=random_state,
                 n_splits=n_splits,
-                draw_with_feature_weights=draw_with_feature_weights,
+                draw_with_feature_weight=draw_with_feature_weight,
                 splitter=splitter,
                 n_estimators=n_estimators,
             )
@@ -414,10 +419,10 @@ def compute_classification_metrics_random_forest_gbs(
             N[label].values,
             R[columns].values,
             sample_weights_list,
-            feature_weights,
+            feature_weight,
             random_state=random_state,
             n_splits=n_splits,
-            draw_with_feature_weights=draw_with_feature_weights,
+            draw_with_feature_weight=draw_with_feature_weight,
             splitter=splitter,
             n_estimators=n_estimators,
         )
@@ -426,11 +431,13 @@ def compute_classification_metrics_random_forest_gbs(
     fpr, tpr, _ = roc_curve(T[label], y_predictions)
 
     if compute_feature_importance:
-        abs_feature_importance, feature_importance = calculate_feature_importance(
-            T[columns].values,
-            best_clf.best_estimator_,
-            label,
-            N[columns].values,
+        abs_feature_importance, feature_importance, shap_values = (
+            calculate_feature_importance(
+                T[columns].values,
+                best_clf.best_estimator_,
+                label,
+                N[columns].values,
+            )
         )
     else:
         abs_feature_importance = None
@@ -452,14 +459,15 @@ def compute_classification_metrics_random_forest_gbs(
 def train_feature_weighted_random_forest(
     X,
     y,
-    feature_weights=None,
-    draw_with_feature_weights=False,
+    feature_weight=None,
+    draw_with_feature_weight=False,
     random_state=None,
     class_weight=None,
     splitter="feature_weighted_best",
     max_features="sqrt",
     cv=5,
     n_estimators=50,
+    budget=None,
 ):
     """Train a classifier to measure the auroc
 
@@ -479,6 +487,7 @@ def train_feature_weighted_random_forest(
     )
     parameter_grid = {
         "min_weight_fraction_leaf": [
+            # 0.0,
             0.0001,
             0.001,
             0.01,
@@ -498,8 +507,9 @@ def train_feature_weighted_random_forest(
     return grid.fit(
         X,
         y,
-        feature_weights=feature_weights,
-        draw_with_feature_weights=draw_with_feature_weights,
+        feature_weight=feature_weight,
+        draw_with_feature_weight=draw_with_feature_weight,
+        budget=budget,
     )
 
 
@@ -649,7 +659,9 @@ def compute_test_metrics_mrs(
         return np.mean(auroc_scores)
 
 
-def train_pu_classifier(X_train, y_train, class_weight="balanced", random_state=None):
+def train_pu_classifier(
+    X_train, y_train, class_weight="balanced", random_state=None, feature_weight=None
+):
     """Train the positive unlabeled classifier
 
     :param X_train: Training features
@@ -657,14 +669,22 @@ def train_pu_classifier(X_train, y_train, class_weight="balanced", random_state=
     :param class_weight: Sample weights, defaults to "balanced"
     :return: Trained positive unlabeled classifier
     """
+    draw_with_feature_weight = False if feature_weight is None else True
     clf = RandomForestClassifier(
         class_weight=class_weight,
         n_estimators=200,
         n_jobs=-1,
         random_state=random_state,
         min_weight_fraction_leaf=0.02,
+        splitter="feature_weighted_best",
     )
-    return clf.fit(X_train, y_train)
+
+    return clf.fit(
+        X_train,
+        y_train,
+        feature_weight=feature_weight,
+        draw_with_feature_weight=draw_with_feature_weight,
+    )
 
 
 def interpolate_roc(y_test, y_predict):
@@ -687,11 +707,11 @@ def train_tree_classifier_auroc(
     y,
     R,
     sample_weights=None,
-    feature_weights=None,
+    feature_weight=None,
     speedup=False,
     n_splits=10,
     random_state=None,
-    draw_with_feature_weights=False,
+    draw_with_feature_weight=False,
     splitter="feature_weighted_best",
     max_features="sqrt",
     **kwargs,
@@ -717,8 +737,8 @@ def train_tree_classifier_auroc(
         X,
         y,
         sample_weight=sample_weights,
-        feature_weights=feature_weights,
-        draw_with_feature_weights=draw_with_feature_weights,
+        feature_weight=feature_weight,
+        draw_with_feature_weight=draw_with_feature_weight,
     )
     ccp_alphas = path.ccp_alphas
     ccp_alphas[ccp_alphas < 0] = 0
@@ -751,15 +771,15 @@ def train_tree_classifier_auroc(
                 X_train,
                 y_train,
                 sample_weight=sample_weights_train,
-                feature_weights=feature_weights,
-                draw_with_feature_weights=draw_with_feature_weights,
+                feature_weight=feature_weight,
+                draw_with_feature_weight=draw_with_feature_weight,
             )
             self_labeled_targets = clf.predict(R)
             clf.fit(
                 R,
                 self_labeled_targets,
                 sample_weight=r_sample_weights,
-                feature_weights=feature_weights,
+                feature_weight=feature_weight,
             )
             reverse_probs = clf.predict_proba(X_val)
             if reverse_probs.shape[1] == 2:
@@ -785,7 +805,7 @@ def train_tree_classifier_auroc(
         X,
         y,
         sample_weight=sample_weights,
-        feature_weights=feature_weights,
+        feature_weight=feature_weight,
     )
 
     return clf
@@ -796,12 +816,13 @@ def train_random_forest_classifier(
     y,
     R,
     sample_weights,
-    feature_weights=None,
+    feature_weight=None,
     n_splits=5,
-    draw_with_feature_weights=False,
+    draw_with_feature_weight=False,
     random_state=None,
     splitter="feature_weighted_best",
     n_estimators=500,
+    budget=None,
     **kwargs,
 ):
     """Train a classifier to measure the auroc
@@ -815,7 +836,7 @@ def train_random_forest_classifier(
     """
 
     skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
-    feature_weights = np.array(feature_weights)
+    feature_weight = np.array(feature_weight)
     # scorer = ReverseScorer(R)
     param_grid = {
         "min_weight_fraction_leaf": [
@@ -838,8 +859,9 @@ def train_random_forest_classifier(
         X,
         y,
         sample_weight=sample_weights,
-        feature_weights=feature_weights,
-        draw_with_feature_weights=draw_with_feature_weights,
+        feature_weight=feature_weight,
+        draw_with_feature_weight=draw_with_feature_weight,
+        budget=budget,
     )
 
     return grid_cv, grid_cv.best_score_
@@ -884,14 +906,15 @@ def compute_test_metrics_fw_mrs(
     R,
     columns,
     random_state=None,
-    feature_weights=None,
+    feature_weight=None,
     method=train_feature_weighted_random_forest,
     class_weight="balanced",
     splitter="feature_weighted_best",
     max_features="sqrt",
     n_splits_test=10,
     n_estimators=500,
-    draw_with_feature_weights=False,
+    draw_with_feature_weight=False,
+    budget=None,
 ):
     """Compute test metrics for mrs
 
@@ -914,14 +937,15 @@ def compute_test_metrics_fw_mrs(
         clf = method(
             train[columns],
             train.label,
-            feature_weights=feature_weights,
-            draw_with_feature_weights=draw_with_feature_weights,
+            feature_weight=feature_weight,
+            draw_with_feature_weight=draw_with_feature_weight,
             random_state=random_state,
             class_weight=class_weight,
             splitter=splitter,
             max_features=max_features,
             cv=3,
             n_estimators=n_estimators,
+            budget=budget,
         )
         y_predict = clf.predict_proba(test[columns])[:, 1]
         auroc = roc_auc_score(test.label, y_predict)
@@ -929,7 +953,7 @@ def compute_test_metrics_fw_mrs(
     return np.mean(auroc_scores)
 
 
-def compute_classification_metrics_feature_weights(
+def compute_classification_metrics_feature_weight(
     N,
     R,
     columns,
@@ -941,7 +965,7 @@ def compute_classification_metrics_feature_weights(
     splitter="feature_weighted_best",
     n_estimators=1000,
     max_depth=None,
-    feature_weights_list=None,
+    feature_weight_list=None,
     drop_ids_list=None,
 ):
     """Computes classification metrics for downstream tasks
@@ -953,20 +977,20 @@ def compute_classification_metrics_feature_weights(
     :param label: Name of the target variable
     :return: Downstream classification metrics
     """
-    n_estimators_per_budget = n_estimators // len(feature_weights_list)
+    n_estimators_per_budget = n_estimators // len(feature_weight_list)
     clf_list = []
-    for feature_weights, drop_ids in zip(feature_weights_list, drop_ids_list):
-        draw_with_feature_weights = False if feature_weights is None else True
+    for feature_weight, drop_ids in zip(feature_weight_list, drop_ids_list):
+        draw_with_feature_weight = False if feature_weight is None else True
         iteration_sample_weights = sample_weights.copy()
         iteration_sample_weights[drop_ids] = 0
         clf = train_random_forest_classifier(
             N[columns],
             N[label],
             iteration_sample_weights,
-            feature_weights,
+            feature_weight,
             random_state=random_state,
             n_splits=n_splits,
-            draw_with_feature_weights=draw_with_feature_weights,
+            draw_with_feature_weight=draw_with_feature_weight,
             class_weight=class_weight,
             splitter=splitter,
             n_estimators=n_estimators_per_budget,
@@ -984,7 +1008,7 @@ def compute_classification_metrics_feature_weights(
     return auroc_score, auprc
 
 
-def compute_feature_weights_with_temperature(temperature, feature_importance):
+def compute_feature_weight_with_temperature(temperature, feature_importance):
     """_summary_
 
     :param temperature: _description_
@@ -993,20 +1017,19 @@ def compute_feature_weights_with_temperature(temperature, feature_importance):
     """
     if temperature is None or temperature == 0.0:
         return np.ones(len(feature_importance)) / len(feature_importance)
-    feature_weights = np.exp(-feature_importance / temperature)
-    return feature_weights / np.sum(feature_weights)
+    feature_weight = np.exp(-feature_importance / temperature)
+    return feature_weight / np.sum(feature_weight)
 
 
 def calculate_feature_importance(test_N, clf, target=None, background=None):
-
     explainer = shap.TreeExplainer(clf, data=background)
     shap_values = explainer.shap_values(test_N, check_additivity=False)
     shap_values = shap_values[1]
-    abs_feature_importance = np.average(np.abs(shap_values), axis=0)
+    abs_feature_importance = np.mean(np.abs(shap_values), axis=0)
 
     if target is not None:
         feature_importance = np.average(shap_values, axis=0)
     else:
         feature_importance = None
 
-    return abs_feature_importance, feature_importance
+    return abs_feature_importance, feature_importance, shap_values

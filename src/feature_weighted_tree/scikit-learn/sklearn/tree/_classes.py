@@ -104,7 +104,11 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
     """
 
     _parameter_constraints: dict = {
-        "splitter": [StrOptions({"best", "random", "feature_weighted_best", "feature_weighted_random"})],
+        "splitter": [
+            StrOptions(
+                {"best", "random", "feature_weighted_best", "feature_weighted_random"}
+            )
+        ],
         "max_depth": [Interval(Integral, 1, None, closed="left"), None],
         "min_samples_split": [
             Interval(Integral, 2, None, closed="left"),
@@ -239,8 +243,10 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
         sample_weight=None,
         check_input=True,
         missing_values_in_feature_mask=None,
-        feature_weights=None,
-        draw_with_feature_weights=False,
+        feature_weight=None,
+        draw_with_feature_weight=False,
+        individual_feature_weight=False,
+        budget=budget,
     ):
         random_state = check_random_state(self.random_state)
 
@@ -284,17 +290,20 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
 
         # Determine output settings
         n_samples, self.n_features_in_ = X.shape
-        if feature_weights is not None:
-            if self.n_features_in_ != len(feature_weights):
-                raise ValueError(
-                    "The feature weight vector contain one weight per feature."
-                )
-            #if any(feature_weight < 0 for feature_weight in feature_weights):
-           #     raise ValueError("All weights need to be positive or zero.")
-            if all(feature_weight == 0 for feature_weight in feature_weights):
-                raise ValueError("All weights are zero.")
-            # if np.sum(feature_weights != 1.0):
-            #    feature_weights = feature_weights / np.sum(feature_weights)
+        if not feature_weight is None:
+            #if self.n_features_in_ != len(feature_weight):
+            #    raise ValueError(
+            #        "The feature weight vector contain one weight per feature."
+            #    )
+            # if any(feature_weight < 0 for feature_weight in feature_weight):
+            #     raise ValueError("All weights need to be positive or zero.")
+            #if all(feature_weight == 0 for feature_weight in feature_weight):
+            #    raise ValueError("All weights are zero.")
+            # if np.sum(feature_weight != 1.0):
+            #    feature_weight = feature_weight / np.sum(feature_weight)
+            feature_weight = np.array(feature_weight)
+        else:
+            feature_weight = np.ones(X.shape[1]) / X.shape[1]
 
         is_classification = is_classifier(self)
 
@@ -455,8 +464,10 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
                     min_weight_leaf,
                     random_state,
                     monotonic_cst,
-                    feature_weights=feature_weights,
-                    draw_with_feature_weights=draw_with_feature_weights,
+                    draw_with_feature_weight=draw_with_feature_weight,
+                    individual_feature_weight=individual_feature_weight,
+                    possible_weights=np.zeros(len(feature_weight)),
+                    budget=budget,
                 )
             else:
                 splitter = SPLITTERS[self.splitter](
@@ -499,7 +510,7 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
                 self.min_impurity_decrease,
             )
 
-        builder.build(self.tree_, X, y, sample_weight, missing_values_in_feature_mask)
+        builder.build(self.tree_, X, y, sample_weight, missing_values_in_feature_mask, feature_weight, budget)
 
         if self.n_outputs_ == 1 and is_classifier(self):
             self.n_classes_ = self.n_classes_[0]
@@ -663,8 +674,9 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
         X,
         y,
         sample_weight=None,
-        feature_weights=None,
-        draw_with_feature_weights=False,
+        feature_weight=None,
+        draw_with_feature_weight=False,
+        individual_feature_weight=False,
     ):
         """Compute the pruning path during Minimal Cost-Complexity Pruning.
 
@@ -705,8 +717,9 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
             X,
             y,
             sample_weight=sample_weight,
-            feature_weights=feature_weights,
-            draw_with_feature_weights=draw_with_feature_weights,
+            feature_weight=feature_weight,
+            draw_with_feature_weight=draw_with_feature_weight,
+            individual_feature_weight=individual_feature_weight,
         )
         return Bunch(**ccp_pruning_path(est.tree_))
 
@@ -1025,8 +1038,9 @@ class DecisionTreeClassifier(ClassifierMixin, BaseDecisionTree):
         y,
         sample_weight=None,
         check_input=True,
-        feature_weights=None,
-        draw_with_feature_weights=False,
+        feature_weight=None,
+        draw_with_feature_weight=False,
+        individual_feature_weight=False,
     ):
         """Build a decision tree classifier from the training set (X, y).
 
@@ -1062,8 +1076,9 @@ class DecisionTreeClassifier(ClassifierMixin, BaseDecisionTree):
             y,
             sample_weight=sample_weight,
             check_input=check_input,
-            feature_weights=feature_weights,
-            draw_with_feature_weights=draw_with_feature_weights,
+            feature_weight=feature_weight,
+            draw_with_feature_weight=draw_with_feature_weight,
+            individual_feature_weight=individual_feature_weight,
         )
         return self
 

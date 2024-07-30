@@ -170,6 +170,8 @@ cdef class DepthFirstTreeBuilder(TreeBuilder):
         const float64_t[:, ::1] y,
         const float64_t[:] sample_weight=None,
         const unsigned char[::1] missing_values_in_feature_mask=None,
+        const float64_t[:] feature_weight=None,
+        float64_t budget=0,
     ):
         """Build a decision tree from the training set (X, y)."""
 
@@ -195,7 +197,7 @@ cdef class DepthFirstTreeBuilder(TreeBuilder):
         cdef float64_t min_impurity_decrease = self.min_impurity_decrease
 
         # Recursive partition (without actual recursion)
-        splitter.init(X, y, sample_weight, missing_values_in_feature_mask)
+        splitter.init(X, y, sample_weight, missing_values_in_feature_mask, feature_weight, budget)
 
         cdef intp_t start
         cdef intp_t end
@@ -429,6 +431,8 @@ cdef class BestFirstTreeBuilder(TreeBuilder):
         const float64_t[:, ::1] y,
         const float64_t[:] sample_weight=None,
         const unsigned char[::1] missing_values_in_feature_mask=None,
+        const float64_t[:] feature_weight=None,
+        float64_t budget=0,
     ):
         """Build a decision tree from the training set (X, y)."""
 
@@ -440,7 +444,7 @@ cdef class BestFirstTreeBuilder(TreeBuilder):
         cdef intp_t max_leaf_nodes = self.max_leaf_nodes
 
         # Recursive partition (without actual recursion)
-        splitter.init(X, y, sample_weight, missing_values_in_feature_mask)
+        splitter.init(X, y, sample_weight, missing_values_in_feature_mask, feature_weight, budget)
 
         cdef vector[FrontierRecord] frontier
         cdef FrontierRecord record
@@ -720,7 +724,6 @@ cdef class Tree:
 
     n_leaves : int
         Number of leaves in the tree.
-
     feature : array of int, shape [node_count]
         feature[i] holds the feature to split on, for the internal node i.
 

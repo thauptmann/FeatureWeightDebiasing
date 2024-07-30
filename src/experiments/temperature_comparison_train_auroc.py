@@ -13,6 +13,7 @@ from utils.visualization_fw_mrs import (
     plot_feature_importance,
     plot_feature_weights,
     plot_budget_comparison_auroc_mean,
+    plot_shap_values,
 )
 
 seed = 5
@@ -55,14 +56,13 @@ def feature_weight_budget_comparison_experiment(
         experiment_name="budget_comparison",
         bias_fraction=bias_fraction,
     )
+
     result_path = result_path / method_name / validation_method
-    result_path.mkdir(parents=True, exist_ok=True)
-
     saved_weights_path = result_path / "saved_weights"
-    saved_weights_path.mkdir(parents=True, exist_ok=True)
-
     auroc_path = result_path / "aurocs"
-    auroc_path.mkdir(exist_ok=True, parents=True)
+    shap_path = result_path / "shapley"
+    for path in (result_path, saved_weights_path, auroc_path, shap_path):
+        path.mkdir(parents=True, exist_ok=True)
 
     feature_weights_list = []
     dropped_samples_list = []
@@ -73,7 +73,7 @@ def feature_weight_budget_comparison_experiment(
     sample_df = df.copy()
     feature_weighted_aurocs_list = []
     abs_feature_importances_list = []
-    feature_importances_list = []
+    shap_values_list_list = []
 
     if data_set_name in ("gbs_gesis", "gbs_allensbach"):
         N = sample_df[sample_df["label"] == 1]
@@ -96,6 +96,7 @@ def feature_weight_budget_comparison_experiment(
             abs_feature_importances,
             feature_weights,
             dropped_samples,
+            shap_values_list,
         ) = feature_weighted_repeated_MRS(
             N=N,
             R=R,
@@ -117,9 +118,9 @@ def feature_weight_budget_comparison_experiment(
         number_of_samples = len(N)
         feature_weighted_aurocs_list.append(random_forest_feature_weighted_aurocs)
         abs_feature_importances_list.append(abs_feature_importances)
-        feature_importances_list.append(feature_importances)
         feature_weights_list.append(feature_weights)
         dropped_samples_list.append(dropped_samples)
+        shap_values_list_list.append(shap_values_list)
 
         # Visualize individual run results
         plot_budget_comparison_auroc(
@@ -143,21 +144,22 @@ def feature_weight_budget_comparison_experiment(
         drop,
         result_path / "mean_auroc_comparison",
     )
+    plot_shap_values(shap_values_list_list, columns, shap_path)
 
     for data, file_name in zip(
         (
             feature_weighted_aurocs_list,
             abs_feature_importances_list,
-            feature_importances_list,
             feature_weights_list,
             dropped_samples_list,
+            shap_values_list_list,
         ),
         (
             "feature_weighted_aurocs.json",
             "abs_feature_importances.json",
-            "feature_importances.json",
             "feature_weights.json",
             "dropped_samples.json",
+            "shap_values.json",
         ),
     ):
         save_list_to_json(result_path, data, file_name)

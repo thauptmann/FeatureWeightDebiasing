@@ -1,7 +1,7 @@
 import numpy as np
 from tqdm import trange
 from .feature_weighted_maximum_representative_subsampling import (
-    compute_feature_weights_with_temperature,
+    compute_feature_weight_with_temperature,
     mrs,
 )
 from utils.metrics import compute_test_metrics_fw_mrs
@@ -64,7 +64,7 @@ def feature_weighted_repeated_MRS(
 
     if method_name == "fw-mrs-temperature":
         draw_with_feature_weights = True
-        feature_weight_method = compute_feature_weights_with_temperature
+        feature_weight_method = compute_feature_weight_with_temperature
 
     rand_int = random_generator.randint(max_int)
 

@@ -5,7 +5,7 @@ from tqdm import trange
 from sklearn.model_selection import KFold
 from utils.metrics import (
     calculate_feature_importance,
-    compute_feature_weights_with_temperature,
+    compute_feature_weight_with_temperature,
     compute_test_metrics_fw_mrs,
     train_pu_classifier,
     train_feature_weighted_random_forest,
@@ -23,6 +23,7 @@ def mrs(
     n_splits=5,
     class_weights="balanced",
     random_state=None,
+    feature_weights=None,
     *args,
     **attributes,
 ):
@@ -38,6 +39,8 @@ def mrs(
     :return: _description_
     """
     all_predictions = np.zeros(len(N))
+    all_shap_values = np.zeros([len(N), len(columns)])
+
     abs_feature_importance_list = []
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     for N_train_index, N_test_index in kf.split(N):
@@ -48,21 +51,23 @@ def mrs(
             train.label,
             class_weight=class_weights,
             random_state=random_state,
+            feature_weight=feature_weights,
         )
-        predictions = clf.predict_proba(N_test[columns])[:, 1]
-        all_predictions[N_test_index] = predictions
-        abs_feature_importance, _ = calculate_feature_importance(
+        predictions_N = clf.predict_proba(N_test[columns])[:, 1]
+        all_predictions[N_test_index] = predictions_N
+        abs_feature_importance, _, shap_values = calculate_feature_importance(
             test_N=N_test[columns].values,
             clf=clf,
         )
         abs_feature_importance_list.append(abs_feature_importance)
+        all_shap_values[N_test_index] = shap_values
 
     abs_mean_feature_importance = np.mean(abs_feature_importance_list, axis=0)
 
     drop_ids = np.argpartition(all_predictions, -n_drop)[-n_drop:]
     drop_index = N.index[drop_ids]
 
-    return drop_index, abs_mean_feature_importance
+    return drop_index, abs_mean_feature_importance, all_shap_values
 
 
 def mrs_without_cv(
@@ -93,7 +98,7 @@ def mrs_without_cv(
         random_state=random_state,
     )
     predictions = clf.predict_proba(N[columns])[:, 1]
-    feature_importance = calculate_feature_importance(
+    feature_importance, _, _ = calculate_feature_importance(
         test_N=N[columns].values,
         clf=clf,
     )
@@ -129,8 +134,8 @@ def feature_weighted_repeated_MRS(
     random_generator=None,
     class_weight="balanced",
     return_auroc=False,
-    n_test_splits=10,
-    n_pu_splits=5,
+    n_test_splits=5,
+    n_pu_splits=10,
     splitter="feature_weighted_best",
     n_estimators=200,
     max_patience=20,
@@ -158,8 +163,10 @@ def feature_weighted_repeated_MRS(
     dropped_N = N.copy().reset_index(drop=True)
     sample_weights = np.ones(len(N))
     abs_feature_importance_list = []
+    shap_values_list = []
     feature_weighted_aurocs_dict = {}
     feature_weights_dict = {}
+    inverse_feature_weights_dict = {}
     dropped_samples_dict = {}
     finished_dict = {}
     best_difference_dict = {}
@@ -172,6 +179,8 @@ def feature_weighted_repeated_MRS(
 
     finished_dict = {}
     for temperature in budgets:
+        feature_weights_dict[temperature] = [np.ones(len(columns))]
+        inverse_feature_weights_dict[temperature] = [np.ones(len(columns))]
         finished_dict[temperature] = False
         best_difference_dict[temperature] = np.inf
         auc_difference_dict[temperature] = 1
@@ -182,7 +191,7 @@ def feature_weighted_repeated_MRS(
 
     for i in trange(number_of_iterations):
         rand_int = random_generator.randint(max_int)
-        drop_ids, abs_feature_importance = mrs(
+        drop_ids, abs_feature_importance, shap_values = mrs(
             N=dropped_N,
             R=R,
             columns=columns,
@@ -190,12 +199,17 @@ def feature_weighted_repeated_MRS(
             random_state=rand_int,
             class_weight=class_weight,
             n_splits=n_pu_splits,
+            feature_weights=inverse_feature_weights_dict[None][-1],
         )
         abs_feature_importance_list.append(abs_feature_importance.tolist())
+        shap_values_list.append(shap_values.tolist())
 
         for temperature in budgets:
-            feature_weights = compute_feature_weights_with_temperature(
+            feature_weights = compute_feature_weight_with_temperature(
                 temperature, abs_feature_importance
+            )
+            inverse_feature_weights = compute_feature_weight_with_temperature(
+                temperature, -abs_feature_importance
             )
 
             auroc = compute_test_metrics_fw_mrs(
@@ -218,6 +232,9 @@ def feature_weighted_repeated_MRS(
                 feature_weights_dict[temperature] = []
             feature_weighted_aurocs_dict[temperature].append(auroc)
             feature_weights_dict[temperature].append(list(feature_weights).copy())
+            inverse_feature_weights_dict[temperature].append(
+                list(inverse_feature_weights).copy()
+            )
 
             auc_difference = abs(auroc - 0.5)
 
@@ -229,11 +246,9 @@ def feature_weighted_repeated_MRS(
                 best_sample_weights_dict[temperature] = (
                     (sample_weights / np.sum(sample_weights)).tolist().copy()
                 )
-                best_feature_weights_dict[temperature] = (
-                    feature_weights.tolist().copy()
-                )
+                best_feature_weights_dict[temperature] = feature_weights.tolist().copy()
                 best_inverse_feature_weights_dict[temperature] = (
-                    compute_feature_weights_with_temperature(
+                    compute_feature_weight_with_temperature(
                         temperature, -abs_feature_importance
                     )
                 ).tolist()
@@ -244,9 +259,7 @@ def feature_weighted_repeated_MRS(
                 len(dropped_N) <= drop
                 or len(dropped_N) <= n_test_splits
                 or (auc_difference <= delta and early_stopping)
-                or (
-                    current_patience[temperature] == max_patience and early_stopping
-                )
+                or (current_patience[temperature] == max_patience and early_stopping)
             ):
                 finished_dict[temperature] = True
 
@@ -262,6 +275,7 @@ def feature_weighted_repeated_MRS(
             abs_feature_importance_list,
             feature_weights_dict,
             dropped_samples_dict,
+            shap_values_list,
         )
 
     else:

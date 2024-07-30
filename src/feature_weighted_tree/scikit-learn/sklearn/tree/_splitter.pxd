@@ -65,6 +65,8 @@ cdef class Splitter:
     cdef const cnp.int8_t[:] monotonic_cst
     cdef bint with_monotonic_cst
     cdef const float64_t[:] sample_weight
+    cdef const float64_t[:] feature_weight
+    cdef budget
 
     # The samples vector `samples` is maintained by the Splitter object such
     # that the samples contained in a node are contiguous. With this setting,
@@ -89,6 +91,8 @@ cdef class Splitter:
         const float64_t[:, ::1] y,
         const float64_t[:] sample_weight,
         const unsigned char[::1] missing_values_in_feature_mask,
+        const float64_t[:] feature_weight,
+        const float64_t budget,
     ) except -1
 
     cdef int node_reset(

@@ -1,15 +1,10 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import shap
 
 sns.set_theme(style="ticks")
-line_styles = [
-    "solid",
-    "dotted",
-    "dashdot",
-    "dashed",
-    (5, (10, 3)),
-]
+line_styles = ["solid", "dotted", "dashdot", "dashed", (5, (10, 3)), (0, (3, 1, 1, 1))]
 
 
 def plot_budget_comparison_auroc(
@@ -107,3 +102,15 @@ def visualize_boxplot(
 
     plt.savefig(f"{file_name}.pdf", bbox_inches="tight")
     plt.close()
+
+
+def plot_shap_values(shap_values_list_list, columns, shap_path):
+    for i, shap_values_list in enumerate(shap_values_list_list):
+        # Create folder
+        repetetion_path = shap_path / str(i)
+        repetetion_path.mkdir(exist_ok=True)
+        for j, shap_values in enumerate(shap_values_list):
+            # Plot values
+            shap.summary_plot(np.array(shap_values), columns)
+            plt.savefig(f"{repetetion_path}/shap_values_{j}.pdf")
+            plt.close()
