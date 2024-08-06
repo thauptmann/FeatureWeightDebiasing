@@ -73,7 +73,6 @@ def feature_weight_budget_comparison_experiment(
     sample_df = df.copy()
     feature_weighted_aurocs_list = []
     abs_feature_importances_list = []
-    feature_importances_list = []
 
     if data_set_name in ("gbs_gesis", "gbs_allensbach"):
         N = sample_df[sample_df["label"] == 1]
@@ -117,7 +116,6 @@ def feature_weight_budget_comparison_experiment(
         number_of_samples = len(N)
         feature_weighted_aurocs_list.append(random_forest_feature_weighted_aurocs)
         abs_feature_importances_list.append(abs_feature_importances)
-        feature_importances_list.append(feature_importances)
         feature_weights_list.append(feature_weights)
         dropped_samples_list.append(dropped_samples)
 
@@ -148,14 +146,12 @@ def feature_weight_budget_comparison_experiment(
         (
             feature_weighted_aurocs_list,
             abs_feature_importances_list,
-            feature_importances_list,
             feature_weights_list,
             dropped_samples_list,
         ),
         (
             "feature_weighted_aurocs.json",
             "abs_feature_importances.json",
-            "feature_importances.json",
             "feature_weights.json",
             "dropped_samples.json",
         ),

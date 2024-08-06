@@ -23,6 +23,7 @@ def mrs(
     n_splits=5,
     class_weights="balanced",
     random_state=None,
+    feature_weight=None,
     *args,
     **attributes,
 ):
@@ -48,6 +49,7 @@ def mrs(
             train.label,
             class_weight=class_weights,
             random_state=random_state,
+            feature_weight=feature_weight
         )
         predictions = clf.predict_proba(N_test[columns])[:, 1]
         all_predictions[N_test_index] = predictions
@@ -178,32 +180,55 @@ def feature_weighted_repeated_MRS(
         dropped_samples_dict[temperature] = 0
         current_patience[temperature] = 0
 
-    rand_int = random_generator.randint(max_int)
 
+    abs_feature_importance = np.ones(len(columns))
     for i in trange(number_of_iterations):
-        rand_int = random_generator.randint(max_int)
-        drop_ids, abs_feature_importance = mrs(
-            N=dropped_N,
-            R=R,
-            columns=columns,
-            n_drop=drop,
-            random_state=rand_int,
-            class_weight=class_weight,
-            n_splits=n_pu_splits,
-        )
-        abs_feature_importance_list.append(abs_feature_importance.tolist())
-
         for temperature in budgets:
-            feature_weights = compute_feature_weights_with_temperature(
-                temperature, abs_feature_importance
+            rand_int = random_generator.randint(max_int)
+            
+            feature_weight = compute_feature_weights_with_temperature(
+                    temperature, -abs_feature_importance
+                )
+            drop_ids, _ = mrs(
+                N=dropped_N,
+                R=R,
+                columns=columns,
+                n_drop=drop,
+                random_state=rand_int,
+                class_weight=class_weight,
+                n_splits=n_pu_splits,
+                feature_weight=feature_weight,
             )
+            feature_weight = compute_feature_weights_with_temperature(
+                    None, abs_feature_importance
+                )
+            _, abs_feature_importance = mrs(
+                N=dropped_N,
+                R=R,
+                columns=columns,
+                n_drop=drop,
+                random_state=rand_int,
+                class_weight=class_weight,
+                n_splits=n_pu_splits,
+                feature_weight=feature_weight,
+            )
+            abs_feature_importance_list.append(abs_feature_importance.tolist())
+            
+            if temperature not in feature_weighted_aurocs_dict:
+                feature_weighted_aurocs_dict[temperature] = []
+                feature_weights_dict[temperature] = []
+            feature_weights_dict[temperature].append(list(feature_weight).copy())
+            
+            feature_weight = compute_feature_weights_with_temperature(
+                    temperature, abs_feature_importance
+                )
 
             auroc = compute_test_metrics_fw_mrs(
                 dropped_N,
                 R,
                 columns,
                 random_state=rand_int,
-                feature_weights=feature_weights,
+                feature_weights=feature_weight,
                 method=train_feature_weighted_random_forest,
                 class_weight="balanced",
                 max_features="sqrt",
@@ -212,13 +237,8 @@ def feature_weighted_repeated_MRS(
                 n_estimators=n_estimators,
                 draw_with_feature_weights=True,
             )
-
-            if temperature not in feature_weighted_aurocs_dict:
-                feature_weighted_aurocs_dict[temperature] = []
-                feature_weights_dict[temperature] = []
+            
             feature_weighted_aurocs_dict[temperature].append(auroc)
-            feature_weights_dict[temperature].append(list(feature_weights).copy())
-
             auc_difference = abs(auroc - 0.5)
 
             if (auc_difference + delta) <= best_difference_dict[
@@ -230,7 +250,7 @@ def feature_weighted_repeated_MRS(
                     (sample_weights / np.sum(sample_weights)).tolist().copy()
                 )
                 best_feature_weights_dict[temperature] = (
-                    feature_weights.tolist().copy()
+                    feature_weight.tolist().copy()
                 )
                 best_inverse_feature_weights_dict[temperature] = (
                     compute_feature_weights_with_temperature(
