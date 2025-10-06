@@ -67,8 +67,8 @@ def compute_relative_bias(N, R, sample_weights):
     :param weights: Sample weights
     :return: Relative biases
     """
-    weighted_means = compute_weighted_means(N, sample_weights)
-    population_means = np.mean(R, axis=0)
+    weighted_means = compute_weighted_means(N.values, sample_weights)
+    population_means = np.mean(R.values, axis=0)
     relative_bias = np.abs((weighted_means - population_means) / population_means * 100)
 
     return relative_bias

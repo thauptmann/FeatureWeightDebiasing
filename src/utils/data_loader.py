@@ -276,20 +276,20 @@ def load_hr_analytics():
         "last_new_job",
     ]
     experience_replacing = {"<1": 0, ">20": 21}
-    hr_analystics = pd.read_csv(
+    hr_analytics = pd.read_csv(
         f"{file_path}/../../data/hr_analytics.csv", engine="python"
     )
-    hr_analystics = hr_analystics.drop(columns=["enrollee_id", "city"])
-    hr_analystics = hr_analystics.dropna()
-    hr_analystics["experience"] = hr_analystics["experience"].replace(
+    hr_analytics = hr_analytics.drop(columns=["enrollee_id", "city"])
+    hr_analytics = hr_analytics.dropna()
+    hr_analytics["experience"] = hr_analytics["experience"].replace(
         experience_replacing
     )
-    hr_analystics = pd.get_dummies(
-        hr_analystics, columns=categorical_variables, drop_first=True
+    hr_analytics = pd.get_dummies(
+        hr_analytics, columns=categorical_variables, drop_first=True
     )
 
-    columns = hr_analystics.drop(columns=["target"]).columns
-    return hr_analystics, columns, "target"
+    columns = hr_analytics.drop(columns=["target"]).columns
+    return hr_analytics, columns, "target"
 
 
 def load_loan_prediction():
