@@ -150,6 +150,7 @@ def analyse_mrs(
             relative_bias_dict_list.append(relative_bias_dict)
 
             save_results(mmds_save_path, mmds_complete, "mmds")
+            save_results(aurocs_save_path, aucs_complete, "aurocs")
             save_results(
                 relative_bias_save_path, relative_bias_dict_list, "relative_biases"
             )

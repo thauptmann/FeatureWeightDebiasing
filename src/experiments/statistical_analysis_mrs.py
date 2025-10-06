@@ -92,7 +92,7 @@ def perform_statistical_analysis_mrs(
                 target=target,
             )
 
-        if method_name == "soft-mrs-linear":
+        if method_name in ("soft-mrs-linear", "uniform"):
             sample_weights = {0.0: {0: sample_weights}}
         weighted_mmd, relative_bias, wasserstein_distances, best_sample_weights = (
             compute_metrics_statistical(
