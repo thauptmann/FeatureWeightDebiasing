@@ -15,7 +15,7 @@ source ~/.bashrc
 conda_initialize
 micromamba activate feature_weighted_mrs
 
-CONFIG=mrs_analysis.config
+CONFIG=gbs_statistical_analysis.config
 MRS_FUNCTION=$(awk -v ArrayTaskID=$SLURM_ARRAY_TASK_ID '$1==ArrayTaskID {print $2}' $CONFIG)
 DATASET=$(awk -v ArrayTaskID=$SLURM_ARRAY_TASK_ID '$1==ArrayTaskID {print $3}' $CONFIG)
 DROP=$(awk -v ArrayTaskID=$SLURM_ARRAY_TASK_ID '$1==ArrayTaskID {print $4}' $CONFIG)
