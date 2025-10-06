@@ -20,5 +20,5 @@ MRS_FUNCTION=$(awk -v ArrayTaskID=$SLURM_ARRAY_TASK_ID '$1==ArrayTaskID {print $
 DATASET=$(awk -v ArrayTaskID=$SLURM_ARRAY_TASK_ID '$1==ArrayTaskID {print $3}' $CONFIG)
 DROP=$(awk -v ArrayTaskID=$SLURM_ARRAY_TASK_ID '$1==ArrayTaskID {print $4}' $CONFIG)
 
-srun python ../src/weighting_experiment.py --data_set_name $DATASET  --n_cv_repeats $N_CV_REPEATS  \
-            --drop $DROP --mrs_function $MRS_FUNCTION --load_previous_results --experiment_name=statistical_analysis
+srun python ../src/weighting_experiment.py --data_set $DATASET  --n_cv_repeats $N_CV_REPEATS  \
+            --drop $DROP --sample_weighting_method $MRS_FUNCTION --load_previous_results --experiment_name=statistical_analysis

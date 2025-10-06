@@ -12,7 +12,7 @@ for MRS_FUNCTION in mrs_step random
 do
     for BIAS_TYPE in less_positive_class 
     do 
-        python src/mrs_analysis.py --data_set_name folktables_income --bias_type $BIAS_TYPE --n_cv_repeats $N_CV_REPEATS --n_cv_splits $N_CV_SPLITS \
-        --drop $DROP --bias_fraction 0.1 --mrs_function $MRS_FUNCTION --load_previous_results
+        python src/mrs_analysis.py --dataset folktables_income --bias_type $BIAS_TYPE --n_cv_repeats $N_CV_REPEATS --n_cv_splits $N_CV_SPLITS \
+        --drop $DROP --bias_fraction 0.1 --sample_weighting_method $MRS_FUNCTION --load_previous_results
     done
 done
