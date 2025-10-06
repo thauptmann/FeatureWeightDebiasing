@@ -331,6 +331,74 @@ def compute_metrics(
         )
 
 
+def compute_metrics_statistical(
+    scaled_N,
+    scaled_R,
+    scaler,
+    columns,
+    target,
+    sample_weights_dict,
+    feature_weights,
+    gamma,
+):
+    """Computes the metrics for an experiment
+
+    :param scaled_N: Standardized non-representative data set
+    :param scaled_R: standardized representative data set
+    :param weights: Sample weights
+    :param scaler: Standard Scaler
+    :param scale_columns: Names of scaled columns
+    :param columns: Names of columns used for training
+    :param gamma: Gamma for the rbf kernel
+    :return: Result metrics
+    """
+    best_mmd = np.inf
+    N_dropped = scaled_N[columns].values
+    R_dropped = scaled_R[columns].values
+    columns_and_target = np.append(columns, target)
+    unscaled_N = scaled_N.copy()
+    unscaled_R = scaled_R.copy()
+    unscaled_N[columns] = scaler.inverse_transform(scaled_N[columns])
+    unscaled_R[columns] = scaler.inverse_transform(scaled_R[columns])
+    
+    for sample_weights in sample_weights_dict.values():
+        sample_weights = sample_weights[0]
+        weighted_wasserstein_distances = []
+        weighted_mmd = weighted_maximum_mean_discrepancy(
+            N_dropped,
+            R_dropped,
+            sample_weights,
+            feature_weights,
+            gamma=gamma,
+        )
+
+        for feature_name in columns_and_target:
+            u_values = scaled_N[feature_name].values
+            v_values = scaled_R[feature_name].values
+            wasserstein_distance_value = wasserstein_distance(
+                u_values, v_values, sample_weights
+            )
+            weighted_wasserstein_distances.append(wasserstein_distance_value)
+
+        weighted_sample_biases = compute_relative_bias(
+            unscaled_N[columns_and_target],
+            unscaled_R[columns_and_target],
+            sample_weights,
+        )
+        if weighted_mmd < best_mmd:
+            best_sample_weights = sample_weights
+            best_mmd = weighted_mmd
+            best_sample_bias = weighted_sample_biases
+            best_wasserstein_distances = weighted_wasserstein_distances
+
+    return (
+        best_mmd,
+        best_sample_bias,
+        best_wasserstein_distances,
+        best_sample_weights,
+    )
+
+
 def compute_classification_metrics_random_forest(
     N,
     R,

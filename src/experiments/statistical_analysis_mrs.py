@@ -10,7 +10,7 @@ from utils.parameter import set_parameter
 from utils.statistics import logistic_regression
 from utils.metrics import (
     calculate_rbf_gamma,
-    compute_metrics,
+    compute_metrics_statistical,
 )
 
 seed = 5
@@ -52,6 +52,7 @@ def perform_statistical_analysis_mrs(
     result_path.mkdir(exist_ok=True)
 
     sample_weight_list = load_saved_results(result_path, "sample_weights")
+    feature_weights = np.ones(len(columns))
 
     N = df[df["label"] == 1].copy()
     R = df[df["label"] == 0].copy()
@@ -79,7 +80,7 @@ def perform_statistical_analysis_mrs(
             sample_weights = sample_weight_list[i]
 
         else:
-            sample_weights, feature_weights = sample_weighting_method(
+            sample_weights, _ = sample_weighting_method(
                 N=N,
                 R=R,
                 columns=columns,
@@ -90,11 +91,11 @@ def perform_statistical_analysis_mrs(
                 hyperparameter_list=hyperparameter_list,
                 target=target,
             )
-            if method_name == "mrs-forest":
-                sample_weights = {0.0: sample_weights}
 
+        if method_name == "soft-mrs-linear":
+            sample_weights = {0.0: {0: sample_weights}}
         weighted_mmd, relative_bias, wasserstein_distances, best_sample_weights = (
-            compute_metrics(
+            compute_metrics_statistical(
                 N,
                 R,
                 scaler,
@@ -103,21 +104,18 @@ def perform_statistical_analysis_mrs(
                 sample_weights,
                 feature_weights,
                 gamma,
-                return_sample_weights=True,
             )
         )
 
         dropped_samples = np.count_nonzero(np.array(sample_weights) == 0.0)
         dropped_samples_list.append(dropped_samples)
-        
+
         sample_weights_list.append(best_sample_weights)
         wasserstein_list.append(wasserstein_distances)
         relative_biases_list.append(relative_bias)
         mmd_list.append(weighted_mmd)
 
-        pvalue = logistic_regression(
-            N[columns + [target]], best_sample_weights
-        )
+        pvalue = logistic_regression(N[columns + [target]], best_sample_weights)
         pvalue_list.append(pvalue)
 
     result_dict_mrs_iteration = {}
