@@ -79,7 +79,7 @@ def perform_statistical_analysis_mrs(
             sample_weights = sample_weight_list[i]
 
         else:
-            sample_weights, _ = sample_weighting_method(
+            sample_weights, feature_weights = sample_weighting_method(
                 N=N,
                 R=R,
                 columns=columns,
@@ -101,6 +101,7 @@ def perform_statistical_analysis_mrs(
                 columns,
                 target,
                 sample_weights,
+                feature_weights,
                 gamma,
                 return_sample_weights=True,
             )

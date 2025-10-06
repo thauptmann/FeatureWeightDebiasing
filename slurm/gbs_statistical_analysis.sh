@@ -2,7 +2,7 @@
 
 #SBATCH -A m2_datamining
 #SBATCH -p longtime 
-#SBATCH -J "MRS Analysis" # gives SLURM_JOB_NAME
+#SBATCH -J "GBS statistical analysis" # gives SLURM_JOB_NAME
 #SBATCH -n 1 # gives SLURM_NTASKS
 #SBATCH -t 10-00 
 #SBATCH --cpus-per-task=5
