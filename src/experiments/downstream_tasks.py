@@ -331,7 +331,8 @@ def downstream_tasks_experiment(
         if data_set_name in ("gbs_gesis", "gbs_allensbach"):
             result_columns = columns
         else:
-            result_columns = N.drop(["label"], axis="columns").columns
+            # result_columns = N.drop(["label"], axis="columns").columns
+            result_columns = np.append(columns, target)
 
         if not method_name == "fw-mrs-temperature-comparison":
             result_dict_similarity_R = write_result_dict(
