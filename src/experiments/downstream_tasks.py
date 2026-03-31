@@ -55,6 +55,7 @@ def downstream_tasks_experiment(
     """
     rf_auroc_list = []
     rf_auprc_list = []
+    rf_mcc_list = []
 
     weighted_mmds_list_R = []
     biases_list_R = []
@@ -73,6 +74,7 @@ def downstream_tasks_experiment(
     dropped_samples_list = []
     R_auroc_list = []
     R_auprc_list = []
+    R_mcc_list = []
     validation_score_list = []
 
     result_path = create_result_path(
@@ -112,6 +114,7 @@ def downstream_tasks_experiment(
         dropped_samples_val_dict,
         auroc_val_dict,
         auprc_val_dict,
+        mcc_val_dict,
         accuracy_val_dict,
         hyperparameter_list,
     ) = set_parameter(method_name, bias_type)
@@ -120,11 +123,13 @@ def downstream_tasks_experiment(
         dropped_samples_individual_val_dict = copy.deepcopy(dropped_samples_val_dict)
         auroc_individual_val_dict = copy.deepcopy(auroc_val_dict)
         auprc_individual_val_dict = copy.deepcopy(auprc_val_dict)
+        mcc_individual_val_dict = copy.deepcopy(mcc_val_dict)
         accuracy_individual_val_dict = copy.deepcopy(accuracy_val_dict)
     else:
         dropped_samples_individual_val_dict = None
         auroc_individual_val_dict = None
         auprc_individual_val_dict = None
+        mcc_individual_val_dict = None
         accuracy_individual_val_dict = None
     for i, (N, R, T) in enumerate(
         split_method(
@@ -186,6 +191,7 @@ def downstream_tasks_experiment(
             (
                 rf_auroc,
                 rf_auprc,
+                rf_mcc,
                 _,
                 best_sample_weights,
                 best_feature_weights,
@@ -216,6 +222,7 @@ def downstream_tasks_experiment(
             validation_score_list.append(validation_score)
             rf_auroc_list.append(rf_auroc)
             rf_auprc_list.append(rf_auprc)
+            rf_mcc_list.append(rf_mcc)
             abs_feature_importance_list.append(abs_feature_importance.tolist())
             roc_curves_list.append(roc_curve_values)
 
@@ -269,10 +276,12 @@ def downstream_tasks_experiment(
                 dropped_samples_val_dict,
                 auroc_val_dict,
                 auprc_val_dict,
+                mcc_val_dict,
                 accuracy_val_dict,
                 dropped_samples_individual_val_dict,
                 auroc_individual_val_dict,
                 auprc_individual_val_dict,
+                mcc_individual_val_dict,
                 accuracy_individual_val_dict,
                 N,
                 R,
@@ -282,23 +291,27 @@ def downstream_tasks_experiment(
             )
 
         if method_name == "uniform" and bias_type in ("less_positive_class", "none"):
-            (R_auroc, R_auprc) = compute_classification_metrics_random_forest_perfect(
-                R,
-                T,
-                columns,
-                target,
-                random_state=seed,
-                n_estimators=500,
-                n_splits=10,
+            (R_auroc, R_auprc, R_mcc) = (
+                compute_classification_metrics_random_forest_perfect(
+                    R,
+                    T,
+                    columns,
+                    target,
+                    random_state=seed,
+                    n_estimators=500,
+                    n_splits=10,
+                )
             )
 
             R_auroc_list.append(R_auroc)
             R_auprc_list.append(R_auprc)
+            R_mcc_list.append(R_mcc)
 
         for result_list, file_name in zip(
             (
                 rf_auroc_list,
                 rf_auprc_list,
+                rf_mcc_list,
                 dropped_samples_list,
                 abs_feature_importance_list,
                 feature_importance_list,
@@ -307,11 +320,13 @@ def downstream_tasks_experiment(
                 best_hyperparameter_list,
                 R_auroc_list,
                 R_auprc_list,
+                R_mcc_list,
                 validation_score_list,
             ),
             (
                 "rf_auroc_list",
                 "rf_auprc_list",
+                "rf_mcc_list",
                 "dropped_samples",
                 "abs_feature_importance",
                 "feature_importance",
@@ -320,6 +335,7 @@ def downstream_tasks_experiment(
                 "best_hyperparameter",
                 "R_auroc_list",
                 "R_auprc_list",
+                "R_mcc_list",
                 "validation_score",
             ),
         ):
@@ -359,6 +375,7 @@ def downstream_tasks_experiment(
             result_dict_classification = write_result_dict_test_set(
                 rf_auroc_list,
                 rf_auprc_list,
+                rf_mcc_list,
                 dropped_samples_list,
                 len(N),
             )
@@ -376,19 +393,23 @@ def downstream_tasks_experiment(
                 (
                     auroc_val_dict,
                     auprc_val_dict,
+                    mcc_val_dict,
                     dropped_samples_val_dict,
                     dropped_samples_individual_val_dict,
                     auroc_individual_val_dict,
                     auprc_individual_val_dict,
+                    mcc_individual_val_dict,
                     accuracy_individual_val_dict,
                 ),
                 (
                     "auroc_val_dict",
                     "auprc_val_dict",
+                    "mcc_val_dict",
                     "dropped_samples_val_dict",
                     "dropped_samples_individual_val_dict",
                     "auroc_individual_val_dict",
                     "auprc_individual_val_dict",
+                    "mcc_individual_val_dict",
                     "accuracy_individual_val_dict",
                 ),
             ):
@@ -425,10 +446,12 @@ def compute_validation_results(
     dropped_samples_val_dict,
     auroc_val_dict,
     auprc_val_dict,
+    mcc_val_dict,
     accuracy_val_dict,
     dropped_samples_individual_val_dict,
     auroc_individual_val_dict,
     auprc_individual_val_dict,
+    mcc_individual_val_dict,
     accuracy_individual_val_dict,
     N,
     R,
@@ -452,6 +475,7 @@ def compute_validation_results(
                 (
                     rf_auroc_val,
                     rf_auprc_val,
+                    rf_mcc_val,
                     rf_accuracy_val,
                     best_sample_weights_val,
                     _,
@@ -487,6 +511,9 @@ def compute_validation_results(
                 auprc_val_dict[float(temperature)][float(hyperparameter)].append(
                     rf_auprc_val
                 )
+                mcc_val_dict[float(temperature)][float(hyperparameter)].append(
+                    rf_mcc_val
+                )
                 accuracy_val_dict[float(temperature)][float(hyperparameter)].append(
                     rf_accuracy_val
                 )
@@ -510,6 +537,7 @@ def compute_validation_results(
             (
                 rf_auroc_val,
                 rf_auprc_val,
+                rf_mcc_val,
                 rf_accuracy_val,
                 best_sample_weights_val,
                 _,
@@ -546,6 +574,9 @@ def compute_validation_results(
             auprc_individual_val_dict[float(temperature)][float(hyperparameter)].append(
                 rf_auprc_val
             )
+            mcc_individual_val_dict[float(temperature)][float(hyperparameter)].append(
+                rf_mcc_val
+            )
             accuracy_individual_val_dict[float(temperature)][
                 float(hyperparameter)
             ].append(rf_accuracy_val)
@@ -557,6 +588,7 @@ def compute_validation_results(
             (
                 rf_auroc_val,
                 rf_auprc_val,
+                rf_mcc_val,
                 rf_accuracy_val,
                 best_sample_weights_val,
                 _,
@@ -587,6 +619,7 @@ def compute_validation_results(
             dropped_samples_val_dict[float(temperature)].append(dropped_samples_val)
             auroc_val_dict[float(temperature)].append(rf_auroc_val)
             auprc_val_dict[float(temperature)].append(rf_auprc_val)
+            mcc_val_dict[float(temperature)].append(rf_mcc_val)
             accuracy_val_dict[float(temperature)].append(rf_accuracy_val)
 
         for temperature, temperature_sample_weights in sample_weights.items():
@@ -606,6 +639,7 @@ def compute_validation_results(
             (
                 rf_auroc_val,
                 rf_auprc_val,
+                rf_mcc_val,
                 rf_accuracy_val,
                 best_sample_weights_val,
                 _,
@@ -638,6 +672,7 @@ def compute_validation_results(
             )
             auroc_individual_val_dict[float(temperature)].append(rf_auroc_val)
             auprc_individual_val_dict[float(temperature)].append(rf_auprc_val)
+            mcc_individual_val_dict[float(temperature)].append(rf_mcc_val)
             accuracy_individual_val_dict[float(temperature)].append(rf_accuracy_val)
 
 

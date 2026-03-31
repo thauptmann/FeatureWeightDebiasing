@@ -76,6 +76,7 @@ def write_result_dict(
 def write_result_dict_test_set(
     rf_auroc_list,
     rf_auprc_list,
+    rf_mcc_list,
     dropped_samples_list,
     number_of_samples,
 ):
@@ -99,6 +100,10 @@ def write_result_dict_test_set(
         "random forest auprc": {
             "mean": np.mean(rf_auprc_list),
             "sd": np.std(rf_auprc_list),
+        },
+        "random forest mcc": {
+            "mean": np.mean(rf_mcc_list),
+            "sd": np.std(rf_mcc_list),
         },
         "dropped_samples": {
             "mean": np.mean(dropped_samples_list),

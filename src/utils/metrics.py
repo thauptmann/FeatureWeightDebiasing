@@ -23,6 +23,7 @@ from sklearn.metrics import (
     accuracy_score,
     average_precision_score,
     balanced_accuracy_score,
+    matthews_corrcoef,
 )
 from sklearn.svm import SVC, LinearSVC
 
@@ -501,11 +502,13 @@ def compute_classification_metrics_random_forest(
 
     auroc_score = roc_auc_score(T[target], y_probabilitites)
     auprc = average_precision_score(T[target], y_probabilitites)
+    mcc = matthews_corrcoef(T[target], y_probabilitites)
     accuracy = accuracy_score(T[target], y_predictions)
 
     return (
         auroc_score,
         auprc,
+        mcc,
         accuracy,
         best_sample_weights,
         best_feature_weight,
@@ -908,10 +911,12 @@ def compute_classification_metrics_random_forest_perfect(
 
     auroc = roc_auc_score(T[target], y_probabilitites)
     auprc = average_precision_score(T[target], y_probabilitites)
+    mcc = matthews_corrcoef(T[target], y_probabilitites)
 
     return (
         auroc,
         auprc,
+        mcc
     )
 
 
