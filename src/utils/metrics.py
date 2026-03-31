@@ -502,7 +502,7 @@ def compute_classification_metrics_random_forest(
 
     auroc_score = roc_auc_score(T[target], y_probabilitites)
     auprc = average_precision_score(T[target], y_probabilitites)
-    mcc = matthews_corrcoef(T[target], y_probabilitites)
+    mcc = matthews_corrcoef(T[target], y_predictions)
     accuracy = accuracy_score(T[target], y_predictions)
 
     return (
@@ -908,10 +908,11 @@ def compute_classification_metrics_random_forest_perfect(
     )
 
     y_probabilitites = grid_cv.predict_proba(T[columns].values)[:, 1]
+    y_predictions = grid_cv.predict(T[columns].values)[:, 1]
 
     auroc = roc_auc_score(T[target], y_probabilitites)
     auprc = average_precision_score(T[target], y_probabilitites)
-    mcc = matthews_corrcoef(T[target], y_probabilitites)
+    mcc = matthews_corrcoef(T[target], y_predictions)
 
     return (
         auroc,
